@@ -1,0 +1,31 @@
+npx hardhat run scripts/deployToken.js --network rinkeby
+npx hardhat run scripts/deployPresaler.js --network rinkeby
+
+npx hardhat console --network rinkeby
+
+const Token = await ethers.getContractFactory("Token")
+const token = await Token.attach("0x5FbDB2315678afecb367f032d93F642f64180aa3")
+const Presaler = await ethers.getContractFactory("Presaler")
+const presaler = await Presaler.attach("0x04F6Cb855516FE2B4979586545DEfF77A84E6b0c")
+const [owner, creator, buyer] = await ethers.getSigners()
+
+// give eth to the buyer and creator
+await owner.sendTransaction({to: buyer.address, value: ethers.utils.parseUnits('0.3', 'ether')})
+await owner.sendTransaction({to: creator.address, value: ethers.utils.parseUnits('0.3', 'ether')})
+
+// create presale and transfer tokens to the presaler
+await presaler.connect(creator).startPresale([1623269721], [1623270021], [100], [token.address], [1000000]);
+await presaler.connect(creator).myPresales()
+await token.connect(owner).mint(presaler.address, 1000000)
+
+// buy tokens on presale and verify 
+await presaler.connect(buyer).buy(1, {value: 5000})
+await token.balanceOf(buyer.address)
+
+// withdraw the unsold tokens
+await presaler.connect(creator).withdraw(1)
+
+// deposit more tokens and "end" the presale
+await token.connect(owner).mint(presaler.address, 500000)
+await presaler.connect(buyer).endPresale(1)
+
